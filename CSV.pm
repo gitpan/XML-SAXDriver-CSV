@@ -3,7 +3,7 @@ package XML::SAXDriver::CSV;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = '0.01';
+$VERSION = '0.03';
 
 use Text::CSV_XS;
 
@@ -130,6 +130,8 @@ sub normalize_heading  ### Default if no Headings_Handler is provided
 { 
   my $heading= shift;
   my $sub_char = shift || '_'; 
+  $heading =~ s/^\s//g;
+  $heading =~ s/\s$//g;
   $heading =~ s/^([^a-zA-Z|^_|^:])/$sub_char/g;   ### We used to also replace the xml in the beginning, but I took it of per recommendation of Michael Rodriguez.
   $heading =~ s/[^a-zA-Z|^-|^.|^0-9|^:]/$sub_char/g;
   return $heading; 
@@ -207,7 +209,7 @@ __END__
     Col_Headings - Reference to the array of column names to be used for XML tag names.
     
     Dynamic_Col_Headings - Should be set if you want the XML tag names generated dynamically
-                           from the row in CSV file.  **Make sure that the number of columns
+                           from the first row in CSV file.  **Make sure that the number of columns
                            in your first row is equal to the largest row in the document.  You
                            don't generally have to worry about if you are submitting valid CSV
                            data, where each row will have the same number of columns, even if
