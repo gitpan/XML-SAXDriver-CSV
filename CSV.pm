@@ -6,7 +6,7 @@ use Text::CSV_XS;
 
 use base qw(XML::SAX::Base);
 use vars qw($VERSION $NS_SAXDriver_CSV);
-$VERSION = '0.06';
+$VERSION = '0.07';
 $NS_SAXDriver_CSV = 'http://xmlns.perl.org/sax/XML::SAXDriver::CSV';
 
 sub _parse_bytestream
@@ -73,8 +73,6 @@ sub _parse_CSV
           Attributes => {},
       };
       
-      $self->start_element($el);
-            
       if (!@{$self->{ParseOptions}->{Col_Headings}} && !$self->{ParseOptions}->{Dynamic_Col_Headings}) 
       {
               my $i = 1;
@@ -87,6 +85,8 @@ sub _parse_CSV
                           
       }   
   
+      $self->start_element($el);
+      
       for (my $i = 0; $i <= $#{$row}; $i++) {
           my $column = { Name => $self->{ParseOptions}->{Col_Headings}->[$i], Attributes => {} };
           
