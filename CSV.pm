@@ -1,21 +1,25 @@
 package XML::SAXDriver::CSV;
 
 use strict;
-use vars qw($VERSION);
-
-$VERSION = '0.03';
 
 use Text::CSV_XS;
 
-sub new {
-    my ($class, %params) = @_;
+use base qw(XML::SAX::Base);
+use vars qw($VERSION $NS_SAXDriver_CSV);
+$VERSION = '0.04';
+$NS_SAXDriver_CSV = 'http://xmlns.perl.org/sax/XML::SAXDriver::CSV';
+
+
+#sub new {
+#    my ($class, %params) = @_;
     
-    return bless \%params, $class;
-}
+#    return bless \%params, $class;
+#}
 
 sub parse {
+  
     my $self = shift;
-
+    
     my $args;
     if (@_ == 1 && !ref($_[0])) {
         $args = { Source => { String => shift }};
@@ -25,26 +29,29 @@ sub parse {
     }
     
     my $parse_options = { %$self, %$args };
-    $self->{ParseOptions} = $parse_options;
+    #$self->{ParseOptions} = $parse_options;
     
-    if (!defined($parse_options->{Source})
-        || !(
-            defined($parse_options->{Source}{String})
-            || defined($parse_options->{Source}{ByteStream})
-            || defined($parse_options->{Source}{SystemId})
-            )) {
-        die "XML::SAXDriver::CSV: no source defined for parse\n";
-    }
+    #if (!defined($parse_options->{Source})
+    #    || !(
+    #        defined($parse_options->{Source}{String})
+    #        || defined($parse_options->{Source}{ByteStream})
+    #        || defined($parse_options->{Source}{SystemId})
+    #        )) {
+    #    die "XML::SAXDriver::CSV: no source defined for parse\n";
+    #}
+    #
+    #if (defined($parse_options->{Handler})) {
+    #   $parse_options->{DocumentHandler} ||= $parse_options->{Handler};
+    #    $parse_options->{DTDHandler} ||= $parse_options->{DTDHandler};
+    #}
     
-    if (defined($parse_options->{Handler})) {
-        $parse_options->{DocumentHandler} ||= $parse_options->{Handler};
-        $parse_options->{DTDHandler} ||= $parse_options->{DTDHandler};
-    }
-    
+     
     $parse_options->{NewLine} = "\n" unless defined($parse_options->{NewLine});
     $parse_options->{IndentChar} = "\t" unless defined($parse_options->{IndentChar});
         
     $parse_options->{Parser} ||= Text::CSV_XS->new();
+    
+    $parse_options->{Declaration}->{Version} ||= '1.0';
     
     my ($ioref, @strings);
     if (defined($parse_options->{Source}{SystemId}) 
@@ -62,16 +69,23 @@ sub parse {
     }
     
     my $document = {};
-    $parse_options->{Handler}->start_document($document);
-    $parse_options->{Handler}->characters({Data => $parse_options->{NewLine}});
+    $self->start_document($document);
+    $self->xml_decl($parse_options->{Declaration});
+    my $pm_csv = $self->_create_node(
+                                    Prefix       => 'SAXDriver::CSV',
+                                    NamespaceURI => $NS_SAXDriver_CSV,
+                                    );
+    $self->start_prefix_mapping($pm_csv);
+    $self->end_prefix_mapping($pm_csv);
+    $self->characters({Data => $parse_options->{NewLine}});
     
     my $doc_element = {
                 Name => $parse_options->{File_Tag} || "records",
                 Attributes => {},
             };
 
-    $parse_options->{Handler}->start_element($doc_element);
-    $parse_options->{Handler}->characters({Data => $parse_options->{NewLine}});
+    $self->start_element($doc_element);
+    $self->characters({Data => $parse_options->{NewLine}});
     
 
     $parse_options->{Col_Headings} ||= [];
@@ -84,11 +98,11 @@ sub parse {
             Name => $parse_options->{Parent_Tag} || "record",
             Attributes => {},
         };
-        $parse_options->{Handler}->characters(
+        $self->characters(
                 {Data => $parse_options->{IndentChar}}
         );
-        $parse_options->{Handler}->start_element($el);
-        $parse_options->{Handler}->characters({Data => $parse_options->{NewLine}});
+        $self->start_element($el);
+        $self->characters({Data => $parse_options->{NewLine}});
         
         
         if (!@{$parse_options->{Col_Headings}} && !$parse_options->{Dynamic_Col_Headings}) 
@@ -105,25 +119,25 @@ sub parse {
     
         for (my $i = 0; $i <= $#{$row}; $i++) {
             my $column = { Name => $parse_options->{Col_Headings}->[$i], Attributes => {} };
-            $parse_options->{Handler}->characters(
+            $self->characters(
                     {Data => $parse_options->{IndentChar}} 
             );
-            $parse_options->{Handler}->start_element($column);
-            $parse_options->{Handler}->characters({Data => $row->[$i]});
-            $parse_options->{Handler}->end_element($column);
-            $parse_options->{Handler}->characters({Data => $parse_options->{NewLine}});
+            $self->start_element($column);
+            $self->characters({Data => $row->[$i]});
+            $self->end_element($column);
+            $self->characters({Data => $parse_options->{NewLine}});
         }
 
-        $parse_options->{Handler}->characters(
+        $self->characters(
                 {Data => $parse_options->{IndentChar}}
         );
-        $parse_options->{Handler}->end_element($el);
-        $parse_options->{Handler}->characters({Data => $parse_options->{NewLine}});
+        $self->end_element($el);
+        $self->characters({Data => $parse_options->{NewLine}});
     }
 
-    $parse_options->{Handler}->end_element($doc_element);
+    $self->end_element($doc_element);
     
-    return $parse_options->{Handler}->end_document($document);
+    return $self->end_document($document);
 }
 
 sub normalize_heading  ### Default if no Headings_Handler is provided
@@ -153,6 +167,12 @@ sub get_row {
         }
     }
     return;
+}
+
+sub _create_node {
+    shift;
+    # this may check for a factory later
+    return {@_};
 }
 
 1;

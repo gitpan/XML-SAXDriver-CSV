@@ -4,5 +4,5 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     'NAME'	=> 'XML::SAXDriver::CSV',
     'VERSION_FROM' => 'CSV.pm', # finds $VERSION
-    'PREREQ_PM' => { Spreadsheet::ParseExcel => 0.20 }
+    'PREREQ_PM' => { Text::CSV_XS => 0.22 }
 );
