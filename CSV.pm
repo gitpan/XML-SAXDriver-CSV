@@ -6,7 +6,7 @@ use Text::CSV_XS;
 
 use base qw(XML::SAX::Base);
 use vars qw($VERSION $NS_SAXDriver_CSV);
-$VERSION = '0.05';
+$VERSION = '0.06';
 $NS_SAXDriver_CSV = 'http://xmlns.perl.org/sax/XML::SAXDriver::CSV';
 
 sub _parse_bytestream
@@ -42,9 +42,6 @@ sub _parse_CSV
   my $self = shift;
   my $source = shift;
   
-  $self->{ParseOptions}->{NewLine} = "\n" unless defined($self->{ParseOptions}->{NewLine});
-  $self->{ParseOptions}->{IndentChar} = "\t" unless defined($self->{ParseOptions}->{IndentChar});
-      
   $self->{ParseOptions}->{Parser} ||= Text::CSV_XS->new();
   
   $self->{ParseOptions}->{Declaration}->{Version} ||= '1.0';
@@ -58,17 +55,14 @@ sub _parse_CSV
                                   );
   $self->start_prefix_mapping($pm_csv);
   $self->end_prefix_mapping($pm_csv);
-  $self->characters({Data => $self->{ParseOptions}->{NewLine}});
-  
+    
   my $doc_element = {
               Name => $self->{ParseOptions}->{File_Tag} || "records",
               Attributes => {},
           };
 
   $self->start_element($doc_element);
-  $self->characters({Data => $self->{ParseOptions}->{NewLine}});
   
-
   $self->{ParseOptions}->{Col_Headings} ||= [];
     
   $self->{ParseOptions}->{Headings_Handler} ||= \&_normalize_heading;
@@ -78,13 +72,9 @@ sub _parse_CSV
           Name => $self->{ParseOptions}->{Parent_Tag} || "record",
           Attributes => {},
       };
-      $self->characters(
-              {Data => $self->{ParseOptions}->{IndentChar}}
-      );
+      
       $self->start_element($el);
-      $self->characters({Data => $self->{ParseOptions}->{NewLine}});
-      
-      
+            
       if (!@{$self->{ParseOptions}->{Col_Headings}} && !$self->{ParseOptions}->{Dynamic_Col_Headings}) 
       {
               my $i = 1;
@@ -99,20 +89,13 @@ sub _parse_CSV
   
       for (my $i = 0; $i <= $#{$row}; $i++) {
           my $column = { Name => $self->{ParseOptions}->{Col_Headings}->[$i], Attributes => {} };
-          $self->characters(
-                  {Data => $self->{ParseOptions}->{IndentChar}} 
-          );
+          
           $self->start_element($column);
           $self->characters({Data => $row->[$i]});
-          $self->end_element($column);
-          $self->characters({Data => $self->{ParseOptions}->{NewLine}});
+          $self->end_element($column);          
       }
 
-      $self->characters(
-              {Data => $self->{ParseOptions}->{IndentChar}}
-      );
-      $self->end_element($el);
-      $self->characters({Data => $self->{ParseOptions}->{NewLine}});
+      $self->end_element($el);      
   }
 
   $self->end_element($doc_element);
@@ -207,13 +190,6 @@ __END__
                  ****There is no DTD support available at this time.  
                  I'll make it available in the next version.****
     
-    NewLine - Specifies the new line character to be used for printing XML data (if any).
-              Defaults to '\n' but can be changed.  If you don't want to indent use empty 
-              quotes.  Ex. (NewLine => "")
-              
-    IndentChar - Specifies the indentation character to be used for printing XML data (if any).
-                 Defaults to '\t' but can be changed.  Ex. (IndentChar => "\t\t")
-                 
     SubChar - Specifies the character(s) to use to substitute illegal chars in xml tag names, that
               will be generated from the first row, but setting the Dynamic_Col_Headings.
                  
