@@ -75,8 +75,10 @@ sub parse {
     
 
     $parse_options->{Col_Headings} ||= [];
-    my @col_headings = @{$parse_options->{Col_Headings}};
-         
+    #my @col_headings = @{$parse_options->{Col_Headings}};
+    
+    $parse_options->{Headings_Handler} ||= \&normalize_heading;
+             
     while (my $row = get_row($parse_options->{Parser}, $ioref, \@strings)) {
         my $el = {
             Name => $parse_options->{Parent_Tag} || "record",
@@ -89,19 +91,20 @@ sub parse {
         $parse_options->{Handler}->characters({Data => $parse_options->{NewLine}});
         
         
-        if (!@col_headings && !$parse_options->{Dynamic_Col_Headings}) 
+        if (!@{$parse_options->{Col_Headings}} && !$parse_options->{Dynamic_Col_Headings}) 
         {
                 my $i = 1;
-                @col_headings = map { "column" . $i++ } @$row;
+                @{$parse_options->{Col_Headings}} = map { "column" . $i++ } @$row;
         }
-        elsif (!@col_headings && $parse_options->{Dynamic_Col_Headings})
+        elsif (!@{$parse_options->{Col_Headings}} && $parse_options->{Dynamic_Col_Headings})
         {
-                @{$parse_options->{Col_Headings}} = @$row;
+                @{$parse_options->{Col_Headings}} = map { $parse_options->{Headings_Handler}->($_, $parse_options->{SubChar}); } @$row; 
+                next; # causes the first (heading) row to be skipped 
                             
         }   
     
         for (my $i = 0; $i <= $#{$row}; $i++) {
-            my $column = { Name => $col_headings[$i], Attributes => {} };
+            my $column = { Name => $parse_options->{Col_Headings}->[$i], Attributes => {} };
             $parse_options->{Handler}->characters(
                     {Data => $parse_options->{IndentChar}} 
             );
@@ -121,6 +124,15 @@ sub parse {
     $parse_options->{Handler}->end_element($doc_element);
     
     return $parse_options->{Handler}->end_document($document);
+}
+
+sub normalize_heading  ### Default if no Headings_Handler is provided
+{ 
+  my $heading= shift;
+  my $sub_char = shift || '_'; 
+  $heading =~ s/^([^a-zA-Z|^_|^:])/$sub_char/g;   ### We used to also replace the xml in the beginning, but I took it of per recommendation of Michael Rodriguez.
+  $heading =~ s/[^a-zA-Z|^-|^.|^0-9|^:]/$sub_char/g;
+  return $heading; 
 }
 
 sub get_row {
@@ -189,6 +201,9 @@ __END__
     IndentChar - Specifies the indentation character to be used for printing XML data (if any).
                  Defaults to '\t' but can be changed.  Ex. (IndentChar => "\t\t")
                  
+    SubChar - Specifies the character(s) to use to substitute illegal chars in xml tag names, that
+              will be generated from the first row, but setting the Dynamic_Col_Headings.
+                 
     Col_Headings - Reference to the array of column names to be used for XML tag names.
     
     Dynamic_Col_Headings - Should be set if you want the XML tag names generated dynamically
@@ -197,6 +212,13 @@ __END__
                            don't generally have to worry about if you are submitting valid CSV
                            data, where each row will have the same number of columns, even if
                            they are empty.
+                           
+    Headings_Handler - Should be used along with Dynamic_Col_Headings to provide a heading 
+                         normalization handler, to conform the headings to the XML 1.0 
+                         specifications.  If not provided, a default will be used that only
+                         works with ASCII chars, therefore any other character sets need to 
+                         provide a custom handler!  The handler sub will be passed the heading
+                         string as the first argument.
                            
 =head1 AUTHOR
 

@@ -20,7 +20,7 @@ my $parser = XML::SAXDriver::CSV->new(
 
 if ($parser->parse())
 {
-    ok(1)
+    ok(1);
 }
 
     

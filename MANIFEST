@@ -5,3 +5,4 @@ MANIFEST
 README
 Data1.csv
 t/00basic.t
+samples/cust_handler.pl
